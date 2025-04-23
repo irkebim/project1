@@ -1,0 +1,20 @@
+# Blender temporary files
+*.blend1
+*.blend2
+*.blend@
+
+# Python cache
+__pycache__/
+*.pyc
+
+# VSCode settings
+.vscode/
+*.code-workspace
+
+# Mac/Windows system files
+.DS_Store
+Thumbs.db
+
+# 기타 개발 임시 파일
+*.log
+*.tmp
