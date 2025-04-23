@@ -8,34 +8,85 @@ class ModuleManager:
     """애드온 모듈을 동적으로 관리하는 클래스"""
     
     def __init__(self, root_package: str, package_paths: List[str] = None):
+        print(f"Initializing ModuleManager for {root_package}")
         self.root_package = root_package
         self.package_paths = package_paths or []
         self.modules = {}  # 이름: 모듈 객체
         self.special_modules = ["config", "auto_reload"]
         
+        # 중요: 속성 미리 초기화
+        self.config = None
+        self.auto_reload = None
+        self.registration = None
+        
         # 유틸리티 모듈 먼저 로드
         self._load_utils()
         
-        # 특별 모듈 로드
+        # 특별 모듈 로드 (순서 조정: config를 먼저 로드)
+        print("Loading config module")
+        config_module = self._safe_import_module("config", self.root_package)
+        if config_module:
+            self.config = config_module
+            self.modules['config'] = config_module
+            print("Config module loaded successfully")
+        else:
+            print("Failed to load config module")
+        
+        # 나머지 특별 모듈 로드
         for name in self.special_modules:
-            self._import_module(name, self.root_package)
+            if name != "config":  # config는 이미 로드했으므로 제외
+                print(f"Loading special module: {name}")
+                self._safe_import_module(name, self.root_package)
         
         # 모든 모듈 로드
+        print("Loading all modules")
         self.load_all_modules()
         
         # 등록 관리자 가져오기
+        print("Setting up registration manager")
         self.registration = self.get_module("utils.registration")
         if not self.registration:
-            from . import registration
-            self.registration = registration
-            
+            try:
+                from . import registration
+                self.registration = registration
+                print("Loaded registration from local import")
+            except ImportError:
+                print("Registration module not found")
+                self.registration = None
+                
         # auto_reload 모듈 가져오기
+        print("Setting up auto_reload module")
         self.auto_reload = self.get_module("utils.auto_reload")
         if not self.auto_reload:
-            self.auto_reload = self.get_module("auto_reload")
-        
-        # config 모듈 가져오기
-        self.config = self.get_module("config")
+            print("auto_reload not found in modules, trying direct imports")
+            try:
+                # 모듈이 루트에 있을 수도 있음
+                if "auto_reload" in self.modules:
+                    self.auto_reload = self.modules["auto_reload"]
+                    print("Found auto_reload in modules")
+                else:
+                    # 직접 임포트 시도
+                    try:
+                        module_name = f"{self.root_package}.utils.auto_reload"
+                        print(f"Trying to import auto_reload from {module_name}")
+                        self.auto_reload = importlib.import_module(module_name)
+                        print("Imported auto_reload from utils")
+                    except ImportError as e:
+                        print(f"Failed to import from utils: {e}")
+                        try:
+                            module_name = f"{self.root_package}.auto_reload"
+                            print(f"Trying to import auto_reload from {module_name}")
+                            self.auto_reload = importlib.import_module(module_name)
+                            print("Imported auto_reload from root package")
+                        except ImportError as e:
+                            print(f"Failed to import from root: {e}")
+                            print("Auto-reload module not found, hot-reload will be disabled")
+                            self.auto_reload = None
+            except Exception as e:
+                print(f"Error setting up auto_reload: {e}")
+                self.auto_reload = None
+                
+        print("ModuleManager initialization completed")
     
     def _get_base_dir(self) -> str:
         """루트 패키지 디렉토리 가져오기"""
@@ -45,53 +96,86 @@ class ModuleManager:
             return os.path.dirname(os.path.abspath(root_module.__file__))
         else:
             # 대체 방법: 현재 파일 기준으로 부모 디렉토리 찾기
-            return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            current_dir = os.path.dirname(__file__)  # utils 폴더
+            return os.path.dirname(current_dir)  # 상위 폴더 (루트)
     
     def _load_utils(self):
         """유틸리티 모듈 로드"""
-        base_dir = self._get_base_dir()
-        utils_path = os.path.join(base_dir, "utils")
-        
-        if os.path.exists(utils_path):
-            for filename in os.listdir(utils_path):
-                if filename.endswith(".py") and not filename.startswith("__"):
-                    name = filename[:-3]
-                    self._import_module(name, f"{self.root_package}.utils")
+        try:
+            base_dir = self._get_base_dir()
+            utils_path = os.path.join(base_dir, "utils")
+            print(f"Loading utilities from {utils_path}")
+            
+            if os.path.exists(utils_path):
+                for filename in os.listdir(utils_path):
+                    if filename.endswith(".py") and not filename.startswith("__"):
+                        name = filename[:-3]
+                        print(f"Loading utility module: {name}")
+                        self._safe_import_module(name, f"{self.root_package}.utils")
+        except Exception as e:
+            print(f"Error in _load_utils: {e}")
+            import traceback
+            traceback.print_exc()
     
-    def _import_module(self, name: str, package: str) -> Optional[Any]:
-        """모듈 가져오기 (새로고침 또는 처음 임포트)"""
+    def _safe_import_module(self, name: str, package: str) -> Optional[Any]:
+        """안전하게 모듈 가져오기 (config 참조 없이)"""
         full_name = f"{package}.{name}"
         try:
+            print(f"Attempting to import: {full_name}")
             if full_name in sys.modules:
+                print(f"Reloading existing module: {full_name}")
                 module = importlib.reload(sys.modules[full_name])
             else:
+                print(f"Importing new module: {full_name}")
                 module = importlib.import_module(f".{name}", package=package)
                 
             # 모듈 맵에 추가 (패키지 접두사 제거)
             module_key = full_name.replace(f"{self.root_package}.", "", 1)
             self.modules[module_key] = module
+            print(f"Successfully imported: {full_name} -> {module_key}")
             return module
         except ImportError as e:
             print(f"Failed to import {full_name}: {e}")
             return None
+        except Exception as e:
+            print(f"Error importing {full_name}: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
+    def _import_module(self, name: str, package: str) -> Optional[Any]:
+        """모듈 가져오기 (새로고침 또는 처음 임포트)"""
+        return self._safe_import_module(name, package)  # 안전한 임포트 메서드 재사용
     
     def load_all_modules(self):
         """모든 모듈 로드"""
-        base_dir = self._get_base_dir()
-        
-        # 패키지 경로 처리
-        for package_path in self.package_paths:
-            full_path = os.path.join(base_dir, package_path)
-            if not os.path.exists(full_path) or package_path == "utils":  # utils는 이미 처리함
-                continue
+        try:
+            base_dir = self._get_base_dir()
             
-            package = f"{self.root_package}.{package_path}"
-            
-            # 디렉토리의 모든 Python 파일 처리
-            for filename in os.listdir(full_path):
-                if filename.endswith(".py") and not filename.startswith("__"):
-                    name = filename[:-3]
-                    self._import_module(name, package)
+            # 패키지 경로 처리
+            for package_path in self.package_paths:
+                full_path = os.path.join(base_dir, package_path)
+                if not os.path.exists(full_path):
+                    print(f"Path does not exist: {full_path}")
+                    continue
+                    
+                if package_path == "utils":  # utils는 이미 처리함
+                    print("Skipping utils folder (already processed)")
+                    continue
+                
+                print(f"Loading modules from {package_path}")
+                package = f"{self.root_package}.{package_path}"
+                
+                # 디렉토리의 모든 Python 파일 처리
+                for filename in os.listdir(full_path):
+                    if filename.endswith(".py") and not filename.startswith("__"):
+                        name = filename[:-3]
+                        print(f"Loading module: {package}.{name}")
+                        self._import_module(name, package)
+        except Exception as e:
+            print(f"Error in load_all_modules: {e}")
+            import traceback
+            traceback.print_exc()
     
     def get_module(self, name: str) -> Optional[Any]:
         """이름으로 모듈 가져오기"""
@@ -119,48 +203,72 @@ class ModuleManager:
             return
             
         # 등록 초기화 및 실행
+        print("Initializing registration")
         self.registration.initialize(self.modules)
+        print("Registering all classes and properties")
         self.registration.register_all()
         
         # 환경 설정에서 Scene 속성 초기화
+        print("Syncing preferences to scenes")
         self._sync_preferences_to_scenes()
         
         # 개발 모드에서 자동 리로드 활성화
         if self.config and hasattr(self.config, "DEV_MODE") and self.config.DEV_MODE:
+            print("Activating auto-reload (DEV_MODE is enabled)")
             if self.auto_reload and hasattr(self.auto_reload, "start_watchdog"):
                 self.auto_reload.start_watchdog()
+            else:
+                print("Auto-reload module not available or missing start_watchdog function")
     
     def _sync_preferences_to_scenes(self):
         """환경 설정의 값을 Scene 속성에 동기화"""
         if not self.config or not hasattr(self.config, "ADDON_ID"):
+            print("Config module missing or ADDON_ID not defined")
             return
         
         try:
             # 오퍼레이터 설정 모듈 가져오기
             default_values_module = self.get_module("preferences.default_values")
             if not default_values_module:
+                print("default_values module not found, cannot sync preferences")
                 return
                 
             # 애드온 설정에 접근
-            preferences = bpy.context.preferences.addons.get(self.config.ADDON_ID)
+            addon_id = self.config.ADDON_ID
+            print(f"Looking for preferences for addon: {addon_id}")
+            preferences = bpy.context.preferences.addons.get(addon_id)
+            
             if not preferences or not preferences.preferences:
                 # 설정이 없으면 오퍼레이터 기본값 사용
+                print("No preferences found, using defaults")
                 default_cube_size = default_values_module.DEFAULT_CUBE_SIZE
             else:
                 # 설정이 있으면 설정값 사용
+                print("Using preferences settings")
                 default_cube_size = preferences.preferences.default_cube_size
-                
-            # 모든 Scene에 적용
-            for scene in bpy.data.scenes:
-                if hasattr(scene, "cube_custom_size"):
-                    scene.cube_custom_size = default_cube_size
+            
+            print(f"Setting cube_custom_size to {default_cube_size}")
+            
+            # bpy.context 대신 bpy.data 사용 (더 안정적)
+            if hasattr(bpy.data, "scenes"):
+                for scene in bpy.data.scenes:
+                    if hasattr(scene, "cube_custom_size"):
+                        scene.cube_custom_size = default_cube_size
+                        print(f"Updated scene {scene.name} cube_custom_size")
+                    else:
+                        print(f"Scene {scene.name} does not have cube_custom_size property")
+            else:
+                print("bpy.data.scenes not available")
                     
         except Exception as e:
             print(f"Error syncing preferences to scenes: {e}")
+            import traceback
+            traceback.print_exc()
     
     def unregister_all(self):
         """모든 모듈의 클래스 및 속성 등록 해제"""
         # 자동 리로드 중지
+        print("Stopping auto-reload if active")
         if self.config and hasattr(self.config, "DEV_MODE") and self.config.DEV_MODE:
             if self.auto_reload and hasattr(self.auto_reload, "stop_watchdog"):
                 self.auto_reload.stop_watchdog()
@@ -170,4 +278,5 @@ class ModuleManager:
             print("Registration module not found, cannot unregister classes.")
             return
             
+        print("Unregistering all classes and properties")
         self.registration.unregister_all()
