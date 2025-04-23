@@ -2,9 +2,9 @@
 import bpy
 from . import operator_cube
 
-class CubePanel(bpy.types.Panel):
-    bl_label = "Cube Generator"
-    bl_idname = "OBJECT_PT_cube_generator"
+class MainPanel(bpy.types.Panel):
+    bl_label = "IRKE BIM Tools"
+    bl_idname = "OBJECT_PT_irke_bim"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = 'IRKE BIM'
@@ -12,11 +12,16 @@ class CubePanel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         scene = context.scene
+        
+        # 큐브 생성 섹션
+        box = layout.box()
+        box.label(text="Cube Generator")
+        box.prop(scene, "cube_custom_size", text="Cube Size")
+        box.operator(operator_cube.CubeOperator.bl_idname, text="Generate Cube")
+        
 
-        layout.prop(scene, "cube_custom_size", text="Cube Size")
-        layout.operator(operator_cube.CubeOperator.bl_idname, text="Generate Cube")
-
-classes = (CubePanel,)
+# 등록할 클래스 리스트 (CubePanel은 이제 사용하지 않음)
+classes = (MainPanel,)
 
 def register():
     for cls in classes:

@@ -32,7 +32,7 @@ PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
 BLENDER_EXE_PATH = "C:/Program Files/Blender Foundation/Blender 4.4/blender.exe"
 BLENDER_ADDON_PATH = "C:/Users/js11w/AppData/Roaming/Blender Foundation/Blender/4.4/scripts/addons/"
 BLENDER_EXTENSION_PATH = "C:/Users/js11w/AppData/Roaming/Blender Foundation/Blender/4.4/extensions/user_default/"
-RELEASE_DIR = PROJECT_ROOT
+RELEASE_DIR = os.path.join(PROJECT_ROOT, "releases")  # 기본 릴리즈 경로를 releases 폴더로 설정
 TEST_RELEASE_DIR = os.path.join(PROJECT_ROOT, "dist_temp")
 DEV_AS_ADDON = True
 DIST_AS_EXTENSION = True
@@ -325,6 +325,10 @@ def zip_folder(source_folder, output_name, is_extension=False):
     """Zip a folder for distribution"""
     import zipfile
     
+    # 릴리즈 경로가 존재하는지 확인하고 생성
+    if not os.path.exists(RELEASE_DIR):
+        os.makedirs(RELEASE_DIR, exist_ok=True)
+    
     output_filename = f"{output_name}.zip"
     output_path = os.path.join(RELEASE_DIR, output_filename)
     
@@ -338,6 +342,7 @@ def zip_folder(source_folder, output_name, is_extension=False):
                     arcname = os.path.join(os.path.basename(source_folder), arcname)
                 zipf.write(file_path, arcname)
     
+    print(f"Saved zip file to: {output_path}")
     return output_path
 
 def release_addon(need_zip=True, with_timestamp=False, with_version=False, is_extension=None):
