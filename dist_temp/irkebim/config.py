@@ -1,14 +1,9 @@
-# Configuration file for Irkebim addon
-# This file contains constants and configuration settings used throughout the addon
+# 애드온 기본 설정
+ADDON_ID = "irkebim"  # 애드온 ID (환경 설정에서 사용)
+DEV_MODE = True       # 개발 모드 (자동 리로드 활성화)
 
-# Addon/Extension name (must match the folder name)
-__addon_name__ = "irkebim"
-ADDON_ID = "irkebim"  # Used in preferences, must match folder name
-
-# Version information (used in release filename when --with_version is specified)
+# 버전 정보
 __version__ = (1, 0, 0)
 
-# Development settings
-DEV_MODE = True  # Set to True to enable additional debugging features
-
-# Other settings can be added here as needed
+# 기타 설정
+DEFAULT_CUBE_SIZE = 2.0  # 기본 큐브 크기

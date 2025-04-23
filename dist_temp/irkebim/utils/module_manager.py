@@ -134,27 +134,21 @@ class ModuleManager:
         """환경 설정의 값을 Scene 속성에 동기화"""
         if not self.config or not hasattr(self.config, "ADDON_ID"):
             return
-        
+            
         try:
-            # 오퍼레이터 설정 모듈 가져오기
-            default_values_module = self.get_module("preferences.default_values")
-            if not default_values_module:
-                return
-                
             # 애드온 설정에 접근
             preferences = bpy.context.preferences.addons.get(self.config.ADDON_ID)
             if not preferences or not preferences.preferences:
-                # 설정이 없으면 오퍼레이터 기본값 사용
-                default_cube_size = default_values_module.DEFAULT_CUBE_SIZE
-            else:
-                # 설정이 있으면 설정값 사용
-                default_cube_size = preferences.preferences.default_cube_size
+                return
                 
             # 모든 Scene에 적용
             for scene in bpy.data.scenes:
-                if hasattr(scene, "cube_custom_size"):
-                    scene.cube_custom_size = default_cube_size
+                # 큐브 크기 설정
+                if hasattr(preferences.preferences, "default_cube_size") and hasattr(scene, "cube_custom_size"):
+                    scene.cube_custom_size = preferences.preferences.default_cube_size
                     
+                # 추가 속성도 비슷하게 처리할 수 있음
+                
         except Exception as e:
             print(f"Error syncing preferences to scenes: {e}")
     

@@ -1,7 +1,7 @@
 # 필요한 내장 모듈 임포트
 import bpy
 
-# bl_info 정의
+# bl_info 정의 - config.py와 버전 일치
 bl_info = {
     "name": "IRKE BIM",
     "author": "js_lim",
