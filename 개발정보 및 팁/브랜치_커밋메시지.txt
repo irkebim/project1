@@ -1,0 +1,14 @@
+# branch 관리
+main - 배포용(정식 버전)
+dev - 개발 중(테스트 버전)
+feature/*** - 새로운 기능 개발용
+fix/*** - 버그 수정용
+
+# commit measage
+feat: Add cube size input to pannel 
+fix: Correct size reference in CubeOperator
+docs: Update README
+refactor: Clean up register/unregister structure
+style: Format panel_main.py
+
+
