@@ -50,5 +50,3 @@ class MainPanel(bpy.types.Panel):
         box.label(text="Cube Generator")
         box.prop(scene, "cube_custom_size", text="Cube Size")
         box.operator(CubeOperator.bl_idname, text="Generate Cube")
-
-

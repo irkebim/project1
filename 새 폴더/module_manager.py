@@ -220,63 +220,63 @@ class ModuleManager:
             else:
                 print("Auto-reload module not available or missing start_watchdog function")
     
-    def _sync_preferences_to_scenes(self):
-        """환경 설정의 값을 Scene 속성에 동기화 (자동화된 방식)"""
-        if not self.config or not hasattr(self.config, "ADDON_ID"):
-            print("Config module missing or ADDON_ID not defined")
+def _sync_preferences_to_scenes(self):
+    """환경 설정의 값을 Scene 속성에 동기화 (자동화된 방식)"""
+    if not self.config or not hasattr(self.config, "ADDON_ID"):
+        print("Config module missing or ADDON_ID not defined")
+        return
+    
+    try:
+        # 오퍼레이터 설정 모듈 가져오기
+        default_values_module = self.get_module("preferences.default_values")
+        if not default_values_module:
+            print("default_values module not found, cannot sync preferences")
             return
-        
-        try:
-            # 오퍼레이터 설정 모듈 가져오기
-            default_values_module = self.get_module("preferences.default_values")
-            if not default_values_module:
-                print("default_values module not found, cannot sync preferences")
-                return
-                
-            # 매핑 정보 가져오기
-            if not hasattr(default_values_module, "PREFERENCES_TO_SCENE_MAPPING"):
-                print("PREFERENCES_TO_SCENE_MAPPING not found in default_values")
-                return
-                
-            mapping = default_values_module.PREFERENCES_TO_SCENE_MAPPING
-            print(f"Found {len(mapping)} properties to sync")
-                
-            # 애드온 설정에 접근
-            addon_id = self.config.ADDON_ID
-            print(f"Looking for preferences for addon: {addon_id}")
-            preferences = bpy.context.preferences.addons.get(addon_id)
             
-            # bpy.data.scenes 접근 가능 여부 확인
-            if not hasattr(bpy.data, "scenes"):
-                print("bpy.data.scenes not available, skipping sync")
-                return
-                
-            # 각 매핑된 속성에 대해 동기화 수행
-            for pref_property, (scene_property, default_value) in mapping.items():
-                # 환경설정에서 값 가져오기 또는 기본값 사용
-                if preferences and preferences.preferences:
-                    if hasattr(preferences.preferences, pref_property):
-                        value = getattr(preferences.preferences, pref_property)
-                        print(f"Using preference value for {pref_property}: {value}")
-                    else:
-                        value = default_value
-                        print(f"Preference {pref_property} not found, using default: {value}")
+        # 매핑 정보 가져오기
+        if not hasattr(default_values_module, "PREFERENCES_TO_SCENE_MAPPING"):
+            print("PREFERENCES_TO_SCENE_MAPPING not found in default_values")
+            return
+            
+        mapping = default_values_module.PREFERENCES_TO_SCENE_MAPPING
+        print(f"Found {len(mapping)} properties to sync")
+            
+        # 애드온 설정에 접근
+        addon_id = self.config.ADDON_ID
+        print(f"Looking for preferences for addon: {addon_id}")
+        preferences = bpy.context.preferences.addons.get(addon_id)
+        
+        # bpy.data.scenes 접근 가능 여부 확인
+        if not hasattr(bpy.data, "scenes"):
+            print("bpy.data.scenes not available, skipping sync")
+            return
+            
+        # 각 매핑된 속성에 대해 동기화 수행
+        for pref_property, (scene_property, default_value) in mapping.items():
+            # 환경설정에서 값 가져오기 또는 기본값 사용
+            if preferences and preferences.preferences:
+                if hasattr(preferences.preferences, pref_property):
+                    value = getattr(preferences.preferences, pref_property)
+                    print(f"Using preference value for {pref_property}: {value}")
                 else:
                     value = default_value
-                    print(f"No preferences found, using default for {pref_property}: {value}")
+                    print(f"Preference {pref_property} not found, using default: {value}")
+            else:
+                value = default_value
+                print(f"No preferences found, using default for {pref_property}: {value}")
+            
+            # 모든 씬에 적용
+            for scene in bpy.data.scenes:
+                if hasattr(scene, scene_property):
+                    setattr(scene, scene_property, value)
+                    print(f"Updated scene {scene.name}.{scene_property} = {value}")
+                else:
+                    print(f"Property {scene_property} not found in scene {scene.name}")
                 
-                # 모든 씬에 적용
-                for scene in bpy.data.scenes:
-                    if hasattr(scene, scene_property):
-                        setattr(scene, scene_property, value)
-                        print(f"Updated scene {scene.name}.{scene_property} = {value}")
-                    else:
-                        print(f"Property {scene_property} not found in scene {scene.name}")
-                    
-        except Exception as e:
-            print(f"Error syncing preferences to scenes: {e}")
-            import traceback
-            traceback.print_exc()
+    except Exception as e:
+        print(f"Error syncing preferences to scenes: {e}")
+        import traceback
+        traceback.print_exc()
     
     def unregister_all(self):
         """모든 모듈의 클래스 및 속성 등록 해제"""

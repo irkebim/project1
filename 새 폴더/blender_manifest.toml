@@ -1,0 +1,27 @@
+schema_version = "1.0.0"
+id = "irkebim"
+name = "IRKE BIM"
+version = "1.0.0"
+tagline = "A powerful BIM tool for architectural modeling in Blender."
+maintainer = "js_lim <irkecorp@gamil.com>"
+type = "add-on"
+website = "https://github.com/irkebim/myextension.git"
+
+category = "3D VIEW, object"
+
+# Blender version support
+blender_version_min = "4.0.0"
+blender_version_max = "5.1.0"
+
+license = [
+  "SPDX:GPL-3.0-or-later"
+]
+
+tags = ["BIM", "Architecture", "Modeling", "3D View"]
+
+[build]
+paths_exclude_pattern = [
+  "__pycache__/",
+  "/.git/",
+  "/*.zip",
+]
